@@ -12,8 +12,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+import org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator;
+import org.springframework.jdbc.support.SQLExceptionTranslator;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -24,8 +27,8 @@ import springbook.user.domain.User;
 @ContextConfiguration(locations="/test-applicationContext.xml")
 @DirtiesContext
 public class UserDaoTest {
-	@Autowired
-	private UserDao dao;
+	@Autowired private UserDao dao;
+	@Autowired private DataSource dataSource;
 	private User user1;
 	private User user2;
 	private User user3;
@@ -35,9 +38,6 @@ public class UserDaoTest {
 		this.user1=new User("gyumee", "박성철", "springno1");
 		this.user2=new User("leegw700", "이길원", "springno2");
 		this.user3=new User("bumjin", "박범진", "springno3");
-		
-		DataSource dataSource=new SingleConnectionDataSource("jdbc:mysql://localhost/springbook?serverTimezone=UTC","ssafy","ssafy",true);
-		dao.setDataSource(dataSource);
 	}
 	
 	@Test
@@ -111,6 +111,30 @@ public class UserDaoTest {
 		assertThat(user1.getId(), is(user2.getId()));
 		assertThat(user1.getName(), is(user2.getName()));
 		assertThat(user1.getPassword(), is(user2.getPassword()));
+	}
+	
+	@Test(expected=DataAccessException.class)
+	public void duplicateKey() {
+		dao.deleteAll();
+		
+		dao.add(user1);
+		dao.add(user1);
+	}
+	
+	@Test
+	public void sqlExceptionTranslate() {
+		dao.deleteAll();
+		
+		try {
+			dao.add(user1);
+			dao.add(user1);
+		}
+		catch(DuplicateKeyException ex) {
+			SQLException sqlEx = (SQLException)ex.getCause();
+			SQLExceptionTranslator set = new SQLErrorCodeSQLExceptionTranslator(this.dataSource);			
+			DataAccessException transEx = set.translate(null, null, sqlEx);
+			assertThat(transEx, is(DuplicateKeyException.class));
+		}
 	}
 
 }
