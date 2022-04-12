@@ -13,9 +13,9 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.aop.framework.ProxyFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
@@ -23,6 +23,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import springbook.user.dao.UserDao;
 import springbook.user.domain.Level;
@@ -169,6 +171,35 @@ public class UserServiceTest {
             if (user.getId().equals(this.id))
                 throw new TestUserServiceException();
             super.upgradeLevel(user);
+        }
+    }
+    
+    @Test(expected=TransientDataAccessResourceException.class) 
+    public void readOnlyTransactionAttribute() {
+        testUserService.getAll();
+    }
+    
+    @Test
+    @Transactional(propagation=Propagation.NEVER)
+    public void transactionSync() {
+        userService.deleteAll();
+        userService.add(users.get(0));
+        userService.add(users.get(1));
+    }
+    
+    static class TestUserService extends UserServiceImpl {
+        private String id = "madnite1"; // users(3).getId()
+        
+        protected void upgradeLevel(User user) {
+            if (user.getId().equals(this.id)) throw new TestUserServiceException();  
+            super.upgradeLevel(user);  
+        }
+
+        public List<User> getAll() {
+            for(User user : super.getAll()) {
+                super.update(user);
+            }
+            return null;
         }
     }
 

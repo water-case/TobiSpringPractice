@@ -1,4 +1,4 @@
-package springbook.learntest.spring.factorybean;
+package springbook.learningtest.spring.factorybean;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;

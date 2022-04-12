@@ -1,4 +1,4 @@
-package springbook.learntest.junit;
+package springbook.learningtest.junit;
 
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.is;
