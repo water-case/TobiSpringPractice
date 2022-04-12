@@ -13,7 +13,7 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
+import org.springframework.aop.framework.ProxyFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.mail.MailException;
@@ -32,8 +32,8 @@ import springbook.user.domain.User;
 @ContextConfiguration(locations = "/test-applicationContext.xml")
 public class UserServiceTest {
     @Autowired UserService userService;
+    @Autowired UserService testUserService;
     @Autowired UserDao userDao;
-    @Autowired UserServiceImpl userServiceImpl;
     @Autowired MailSender mailSender;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired ApplicationContext context;
@@ -147,21 +147,13 @@ public class UserServiceTest {
         assertThat(userWithoutLevelRead.getLevel(), is(Level.BASIC));
     }
 
-    @Test @DirtiesContext
+    @Test
     public void upgradeAllOrNothing() throws Exception {
-        TestUserService testUserService = new TestUserService(users.get(3).getId());
-        testUserService.setUserDao(userDao);
-        testUserService.setMailSender(mailSender);
-        
-        TxProxyFactoryBean txProxyFactoryBean=context.getBean("&userService",TxProxyFactoryBean.class);
-        txProxyFactoryBean.setTarget(testUserService);
-        UserService txUserService = (UserService) txProxyFactoryBean.getObject();
-         
         userDao.deleteAll();              
         for(User user : users) userDao.add(user);
         
         try {
-            txUserService.upgradeLevels();   
+            testUserService.upgradeLevels();   
             fail("TestUserServiceException expected"); 
         }
         catch(TestUserServiceException e) { 
@@ -170,12 +162,8 @@ public class UserServiceTest {
         checkLevelUpgraded(users.get(1), false);
     }
 
-    static class TestUserService extends UserServiceImpl {
-        private String id;
-
-        private TestUserService(String id) {
-            this.id = id;
-        }
+    static class TestUserServiceImpl extends UserServiceImpl {
+        private String id="madnite1";
 
         protected void upgradeLevel(User user) {
             if (user.getId().equals(this.id))
@@ -185,6 +173,11 @@ public class UserServiceTest {
     }
 
     static class TestUserServiceException extends RuntimeException {
+    }
+    
+    @Test
+    public void advisorAutoProxyCreator() {
+        assertThat(testUserService, is(java.lang.reflect.Proxy.class));
     }
 
 }
